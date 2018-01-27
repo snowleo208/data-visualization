@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FCC Challenge : Visualize Data with a Forced Graph</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.12.2/d3.js"></script>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/2.9.0/css/flag-icon.min.css" rel="stylesheet">
+  <style type="text/css">
+  .chart {
+    max-width: 900px;
+    /*margin: 0 auto;*/
+  }
+  #force {
+    display: block;
+    margin: 0 auto;
+  }
+  .name {
+    font-family: 'Arial';
+    font-size: 12px;
+  }
+  #tooltip {
+    position: absolute;
+    background: rgba(0,0,0,0.8);
+    width: auto;
+    border-radius: 5px;
+    padding: 0.5em 1em;
+    font-family: 'Arial';
+    transition: opacity 300ms;
+    color: white;
+    font-size: 0.8em;
+    min-width: 50px;
+    max-width: 150px;
+    width: auto;
+  }
+  .value {
+    font-weight: 600;
+  }
+  .hidden {
+    display: none;
+    opacity: 0;
+  }
+  .absolute{
+    position: absolute;
+ }
+  </style>
+</head>
+<body>
+  <div class="chart">
+    <svg id="force"></svg>
+    <div class="flags"></div>
+  </div>
+  <div id="tooltip" class="hidden">
+    <div id="value"></div>
+  </div>
+  <script type="text/javascript">
+  var url = 'https://raw.githubusercontent.com/DealPete/forceDirected/master/countries.json';
+  d3.json(url, function(err, json) {
+    if (err) throw err;
+    var dataset = json;
+    var w = 900
+    var h = 640;
+    var padding = 20;
+
+    var force = d3.forceSimulation(dataset.nodes)
+    .force("charge", d3.forceManyBody().distanceMax(80))
+    .force("link", d3.forceLink(dataset.links))
+    .force("center", d3.forceCenter(w / 2, h / 2));
+
+  //create svg chart
+    var svg = d3.select(".chart")
+    .select("#force")
+    .attr("width", w)
+    .attr("height", h);
+  //   .attr("preserveAspectRatio", "xMinYMin meet")
+  //   .attr("viewBox", "0 0 " + w + " " + h);
+
+    var edges = svg.append("g")
+    .selectAll("line")
+    .data(dataset.links)
+    .enter()
+    .append("line")
+    .style("stroke", "#ccc")
+    .style("stroke-width", 1);
+
+    var nodes = d3.select(".chart")
+    .select(".flags")
+    .selectAll("img")
+    .data(dataset.nodes)
+    .enter()
+    .append("img")
+    // .attr("xlink:href", "https://freecodecamp.devnoise.com/national-contiguity/blank.gif")
+    .attr("class", function(d) { return "absolute flag-icon flag-icon-" + d.code; })
+    .attr("width", 14)
+    .attr("height", 14)
+    .call(d3.drag()  //drag events
+      .on("start", dragStarted)
+      .on("drag", dragging)
+      .on("end", dragEnded))
+    .on("mouseover", function(d) {
+    d3.select(this)
+    .attr("opacity", "0.8");
+
+  //Update the tooltip position and value
+  d3.select("#tooltip")
+  .style("left", function() {
+    if(d3.event.pageX + 200 >= window.innerWidth) {
+      return (d3.event.pageX - 180) + "px"
+    } else {
+      return (d3.event.pageX + 20) + "px"
+    }
+  })
+  .style("top", (d3.event.pageY - 30) + "px")
+  .select("#value")
+  .text(function() { return d.country; });
+
+  d3.select("#tooltip").classed("hidden", false);
+
+})
+  .on("mouseout", function(d) {
+    d3.select(this)
+    .transition()
+    .duration(300)
+    .attr("opacity", 1);
+    d3.select("#tooltip").classed("hidden", true);
+  });
+
+    force.on("tick", function() {
+      edges.attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+      
+      nodes.attr("style", function(d) { return "left: " + (d.x + 3) + "px;" + 
+        "top: " + d.y + "px;";
+    })
+
+    });
+
+  function dragStarted(d) {
+    if (!d3.event.active) force.alphaTarget(1).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+  function dragging(d) {
+    d.fx = d3.event.x;
+    d.fy = d3.event.y;
+  }
+  function dragEnded(d) {
+    if (!d3.event.active) force.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
+
+  // create text for title
+  svg.append("text")
+        .attr("x", w / 2)             
+        .attr("y", 30)
+        .attr("text-anchor", "middle")
+        .attr("font-weight", "bold")
+        .style("font-size", "1.3em") 
+        .style("font-family", "Open Sans")
+        .text("Force Directed Graph of State Contiguity");
+});
+</script>
+</body>
+</html>

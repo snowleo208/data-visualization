@@ -1,0 +1,250 @@
+​<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCC Challenge : Visualize Data with a Scatterplot Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.12.2/d3.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+    <style type="text/css">
+      .chart {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .name {
+        font-family: 'Arial';
+        font-size: 12px;
+      }
+      .source {
+        font-family: 'Arial';
+        font-size: 11px;
+        color: grey;
+      }
+      a {
+        color: #333;
+        text-decoration: none;
+        transition: 300ms;
+      }
+      a:hover {
+        color: grey;
+      }
+      #tooltip {
+        position: absolute;
+        background: rgba(0,0,0,0.8);
+        width: auto;
+        border-radius: 5px;
+        padding: 0.5em 1em;
+        font-family: 'Arial';
+        transition: opacity 300ms;
+        color: white;
+        font-size: 0.8em;
+        min-width: 50px;
+        max-width: 150px;
+        width: auto;
+      }
+      .value {
+        font-weight: 600;
+      }
+      .hidden {
+        display: none;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart">
+      <svg id="scatterplot"></svg>
+      <div class="source"><p>
+        Sources: 
+        <br /><a href="https://en.wikipedia.org/wiki/Alpe_d%27Huez" target="_blank">https://en.wikipedia.org/wiki/Alpe_d%27Huez</a>
+        <br /><a href="http://www.fillarifoorumi.fi/forum/showthread.php?38129-Ammattilaispy%F6r%E4ilij%F6iden-nousutietoja-%28aika-km-h-VAM-W-W-kg-etc-%29&p=2041608#post2041608" target="_blank">http://www.fillarifoorumi.fi/forum/showthread.php?38129-Ammattilaispy%F6r%E4ilij%F6iden-nousutietoja-%28aika-km-h-VAM-W-W-kg-etc-%29&p=2041608#post2041608</a>
+        <br /><a href="https://alex-cycle.blogspot.com/2015/07/alpe-dhuez-tdf-fastest-ascent-times.html" target="_blank">https://alex-cycle.blogspot.com/2015/07/alpe-dhuez-tdf-fastest-ascent-times.html</a>
+        <a href="http://www.dopeology.org/" target="_blank">http://www.dopeology.org/</a>
+      </p></div>
+    </div>
+    <div id="tooltip" class="hidden">
+      <div id="value"></div>
+    </div>
+    <script type="text/javascript">
+  var url = 'https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/cyclist-data.json';
+d3.json(url, function(json) {
+  var dataset = json;
+  var w = 600;
+  var h = 600;
+  var padding = 40;
+  var rightPadding = 90;
+  var xScale = d3.scaleLinear().domain([d3.max(dataset, function(d) { return ((d['Seconds'] - 2210) / 60) + 0.5; }), 0]).rangeRound([padding, w - padding - rightPadding]);
+  var yScale = d3.scaleLinear().domain([d3.max(dataset, function(d) { return d['Place'] + 1; }), 0]).rangeRound([h - padding, padding]);
+  var xAxis = d3.axisBottom().scale(xScale);
+  var yAxis = d3.axisLeft().scale(yScale).ticks(8);
+  
+  var key = function (d) { return d['Time']; };
+  
+  //create svg chart
+  var svg = d3.select(".chart")
+    .select("#scatterplot")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "0 0 " + w + " " + h);
+
+  //create scatterplot element
+  svg.selectAll("circle").data(dataset, key)
+  .enter().append("circle")
+  .attr("class", "circle")
+  .attr("cx", function(d) {
+    return xScale((d['Seconds'] - 2210) / 60);
+   })
+  .attr("cy", function(d) {
+    return yScale(d['Place']);
+   })
+  .attr("r", 5)
+  .attr("width", function(d,i) {return 5;})
+  .attr("height", function(d) {
+    return h - padding - yScale(d['Place']);
+  })
+  .attr("fill", function(d,i) {
+    return d.Doping !== "" ? '#ef5350' : '#9E9E9E';
+  })
+
+  svg.selectAll("text")
+  .data(dataset)
+  .enter()
+  .append("text")
+  .attr("class", "name")
+  .text(function(d,i) { return d['Name']; })
+  .attr("x", function(d) {
+    return xScale((d['Seconds'] - 2210) / 60);
+   })
+  .attr("y", function(d) {
+    return yScale(d['Place']);
+   })
+  .attr("transform", "translate(15, 3)");
+
+  svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + (h - padding) + ")")
+    .call(xAxis);
+  
+  svg.append("g")
+    .attr("class", "y axis")
+    .attr("transform", "translate(" + padding + ",0)")
+    .call(yAxis);
+
+  svg.append("text")
+      .attr("x", function(d) { return xScale(0.3); })
+      .attr("y", function(d) { return yScale(31.3); })
+      .attr("class", "name")
+      .text("Riders with doping allegations")
+  
+  //Show the tooltip
+  svg.selectAll("circle").on("mouseover", function(d) {
+    d3.select(this)
+      .attr("fill", "#455A64");
+
+  //Update the tooltip position and value
+  d3.select("#tooltip")
+    .style("left", function() {
+      if(d3.event.pageX + 200 >= window.innerWidth) {
+        return (d3.event.pageX - 200) + "px"
+      } else {
+        return (d3.event.pageX + 20) + "px"
+      }
+     })
+    .style("top", (d3.event.pageY - 30) + "px")
+    .select("#value")
+    .html(function() {
+      let html = '<span class="value">Time: </span>' + d['Time'] + '<br />' + 
+          '<span class="value">Name: </span>' + d['Name'] + '<br />' + 
+          '<span class="value">Place: </span>' + d['Place'] + '<br />' + 
+          '<span class="value">Year: </span>' + d['Year'] + '<br />'
+      if(d.Doping == "") {
+        html += '<span class="value">Doping: </span>No Doping Allegation';
+      } else {
+        html += '<span class="value">Doping: </span>' + d.Doping;
+      }
+      return html;
+    });
+
+  d3.select("#tooltip").classed("hidden", false);
+
+  })
+  .on("mouseout", function(d) {
+    d3.select(this)
+      .transition()
+      .duration(300)
+      .attr("fill", function(d,i) {
+    return d.Doping !== "" ? '#ef5350' : '#9E9E9E';
+  });
+    d3.select("#tooltip").classed("hidden", true);
+  })
+
+  //text for y-axis
+  svg.append("text")
+        .attr("x", padding - w / 2)             
+        .attr("y", padding / 2)
+        .style("font-size", "0.8em")
+        .style("font-family", "Open Sans")
+        .text("Ranking")
+        .attr("transform", "rotate(-90)");
+
+  //text for x-axis
+  svg.append("text")
+        .attr("x", (w / 2) - padding * 2)             
+        .attr("y", h)
+        .style("font-size", "0.8em")
+        .style("font-family", "Open Sans")
+        .text("Minutes Behind Fastest Time");
+
+  //create legend title
+  svg.append("text")
+      .attr("x", function(d) { return xScale(0.5); })
+      .attr("y", function(d) { return yScale(28.5); })
+      .attr("class", "name")
+      .style("font-weight", "bold")
+      .style("text-decoration", "underline")
+      .text("Legend")
+
+  // create legend for no doping
+  svg.append("circle")
+      .attr("cx", function(d) { return xScale(0.4); })
+      .attr("cy", function(d) { return yScale(29.7); })
+      .attr("r", 5)
+      .attr("fill", "#9E9E9E");
+
+  svg.append("text")
+      .attr("x", function(d) { return xScale(0.3); })
+      .attr("y", function(d) { return yScale(30); })
+      .attr("class", "name")
+      .text("No doping allegations");
+
+  // create legend for doping
+  svg.append("circle")
+      .attr("cx", function(d) { return xScale(0.4); })
+      .attr("cy", function(d) { return yScale(31); })
+      .attr("r", 5)
+      .attr("fill", "#ef5350");
+  
+  //create text for title
+  //
+  svg.append("text")
+        .attr("x", w / 2)             
+        .attr("y", padding - 15)
+        .attr("text-anchor", "middle")
+        .attr("font-weight", "bold")
+        .style("font-size", "1.2em") 
+        .style("font-family", "Open Sans")
+        .text("Doping in Professional Bicycle Racing");
+
+  svg.append("text")
+        .attr("x", w / 2)             
+        .attr("y", padding + 10)
+        .attr("text-anchor", "middle")
+        .attr("font-weight", "bold")
+        .style("font-size", "1em") 
+        .style("font-family", "Open Sans")
+        .text("35 Fastest times up Alpe d'Huez");
+  
+});
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCC Challenge : Visualize Data with a Heatmap</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.12.2/d3.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+    <style type="text/css">
+      .chart {
+        max-width: 1300px;
+        margin: 0 auto;
+      }
+      .name {
+        font-family: 'Arial';
+        font-size: 12px;
+      }
+      .source {
+        font-family: 'Arial';
+        font-size: 11px;
+        color: grey;
+      }
+      a {
+        color: #333;
+        text-decoration: none;
+        transition: 300ms;
+      }
+      a:hover {
+        color: grey;
+      }
+      g.y.axis text {
+        transform: translateY(15px);
+      }
+      #tooltip {
+        position: absolute;
+        background: rgba(0,0,0,0.8);
+        width: auto;
+        border-radius: 5px;
+        padding: 0.5em 1em;
+        font-family: 'Arial';
+        transition: opacity 300ms;
+        color: white;
+        font-size: 0.8em;
+        min-width: 50px;
+        max-width: 150px;
+        width: auto;
+      }
+      .value {
+        font-weight: 600;
+      }
+      .hidden {
+        display: none;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart">
+      <svg id="heatmap"></svg>
+      <div class="source"><p>
+        Temperatures are in Celsius and reported as anomalies relative to the Jan 1951-Dec 1980 average. <br />Estimated Jan 1951-Dec 1980 absolute temperature: 8.66 +/- 0.07
+      </p></div>
+    </div>
+    <div id="tooltip" class="hidden">
+      <div id="value"></div>
+    </div>
+    <script type="text/javascript">
+  var url = 'https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/global-temperature.json';
+d3.json(url, function(json) {
+  var dataset = json.monthlyVariance;
+  var w = 1200;
+  var h = 550;
+  var padding = 60;
+
+  //get smallest and largest date
+  var minYear = new Date (d3.min(dataset, function(d) { return d.year; }), 0);
+  var maxYear = new Date (d3.max(dataset, function(d) { return d.year; }), 0);
+  var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  var xScale = d3.scaleTime().domain([minYear, maxYear]).rangeRound([padding, w - padding]);
+  var yScale = d3.scaleLinear().domain([d3.max(dataset, function(d) { return d.month + 1; }), 1]).rangeRound([h - padding, padding]);
+  var xAxis = d3.axisBottom().scale(xScale);
+  var yAxis = d3.axisLeft().scale(yScale).ticks(12).tickFormat(function(d, i) {
+    return months[months.length - i];
+  }).tickSize(3, 0, 0);
+  
+  var key = function (d) { return d.variance + json.baseTemperature; };
+
+  //create svg chart
+  var svg = d3.select(".chart")
+    .select("#heatmap")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "0 0 " + w + " " + h);
+
+  //create scale for colours
+  var colors = ["#5e4fa2", "#3288bd", "#66c2a5", "#abdda4", "#e6f598", "#ffffbf", "#fee08b", "#fdae61", "#f46d43", "#d53e4f", "#9e0142"];
+  var colorFn = d3.scaleQuantile().domain([d3.min(dataset, function(d) { return d.variance; }) + json.baseTemperature, d3.max(dataset, function(d) { return d.variance; }) + json.baseTemperature]).range(colors);
+
+  //create heatmap element
+  svg.selectAll("rect")
+  .data(dataset)
+  .enter()
+  .append("rect")
+  .attr("class", "rect")
+  .attr("x", function(d, i) {
+    return xScale(new Date(d.year, 0));
+   })
+  .attr("y", function(d) {
+    return yScale(d.month);
+   })
+  .attr("width", 5)
+  .attr("height", function(d, i) {
+    return (h - padding) / 12 - 5;
+  })
+  .attr("fill", function(d,i) {
+    return colorFn(d.variance + json.baseTemperature);
+  })
+
+  //x-axis
+  svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + (h - padding) + ")")
+    .call(xAxis);
+  
+  //y-axis
+  svg.append("g")
+    .attr("class", "y axis")
+    .attr("transform", "translate(" + padding + ",0)")
+    .call(yAxis);
+  
+  // //Show the tooltip
+  svg.selectAll("rect").on("mouseover", function(d) {
+    d3.select(this)
+     .attr("opacity", "0.8");
+
+  //Update the tooltip position and value
+  d3.select("#tooltip")
+    .style("left", function() {
+      if(d3.event.pageX + 200 >= window.innerWidth) {
+        return (d3.event.pageX - 200) + "px"
+      } else {
+        return (d3.event.pageX + 20) + "px"
+      }
+     })
+    .style("top", (d3.event.pageY - 30) + "px")
+    .select("#value")
+    .html(function() {
+      let html = '<span class="value">Year: </span>' + d.year + '<br />' + 
+          '<span class="value">Month: </span>' + months[d.month-1] + '<br />' + 
+          '<span class="value">Temperature: </span>' + Math.floor((d.variance + json.baseTemperature) * 1000) / 1000 + '<br />' + 
+          '<span class="value">Variance: </span>' + d.variance ;
+      return html;
+    });
+
+  d3.select("#tooltip").classed("hidden", false);
+
+  })
+  .on("mouseout", function(d) {
+    d3.select(this)
+      .transition()
+      .duration(300)
+      .attr("opacity", 1);
+    d3.select("#tooltip").classed("hidden", true);
+  })
+
+  //text for y-axis
+  svg.append("text")
+        .attr("x", padding - w / 3)             
+        .attr("y", padding / 3)
+        .style("font-size", "0.8em")
+        .style("font-family", "Open Sans")
+        .text("Months")
+        .attr("transform", "rotate(-90)");
+
+  //text for x-axis
+  svg.append("text")
+        .attr("x", (w / 2))             
+        .attr("y", h - padding / 2)
+        .style("font-size", "0.8em")
+        .style("font-family", "Open Sans")
+        .text("Years");
+
+  //create legend
+  svg.selectAll(".legend")
+      .attr("class", "legend")
+      .data(colors.reverse())
+      .enter()
+      .append("g")
+      .append("rect")
+      .attr("x", function(d, i) { return w - padding - (i * 35); })
+      .attr("y", function(d) { return yScale(13.7); })
+      .attr("width", 35)
+      .attr("height", 15)
+      .attr("fill", function(d, i) { return d; });
+
+  svg.selectAll(".legend")
+      .data([0].concat(colorFn.quantiles()), function(d) {
+      return d;
+    })
+      .enter()
+      .append("g")
+      .append("text")
+      .attr("text-anchor", "middle")
+      .text( function(d) { return Math.floor(d * 10) / 10; })
+      .attr("x", function(d, i) { return i * 35 + w / 1.5; })
+      .attr("y", function(d) { return yScale(14.5); })
+      .attr("transform", "translate(" + 8 + ",0)")
+      .attr("font-family", "Open Sans")
+      .attr("font-size", "0.7em")
+      .attr("fill", function(d, i) { return d; });
+  
+  //create text for title
+  svg.append("text")
+        .attr("x", w / 2)             
+        .attr("y", padding / 2)
+        .attr("text-anchor", "middle")
+        .attr("font-weight", "bold")
+        .style("font-size", "1.2em") 
+        .style("font-family", "Open Sans")
+        .text("Monthly Global Land-Surface Temperature");
+
+  svg.append("text")
+        .attr("x", w / 2)             
+        .attr("y", padding - 10)
+        .attr("text-anchor", "middle")
+        .attr("font-weight", "bold")
+        .style("font-size", "1em") 
+        .style("font-family", "Open Sans")
+        .text("1753 - 2015");
+  });
+    </script>
+  </body>
+</html>
